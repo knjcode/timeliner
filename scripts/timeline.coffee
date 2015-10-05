@@ -11,7 +11,81 @@
 #   vexus2
 
 request = require 'request'
+cloneDeep = require 'lodash.clonedeep'
+cronJob = require('cron').CronJob
+
+timezone = process.env.TZ ? ""
+
 module.exports = (robot) ->
+
+  data = {}
+  latestData = {}
+  report = []
+  loaded = false
+
+  robot.brain.on "loaded", ->
+    # "loaded" event is called every time robot.brain changed
+    # data loading is needed only once after a reboot
+    if !loaded
+      try
+        data = JSON.parse robot.brain.data.timelineSumup
+      catch error
+        robot.logger.info("JSON parse error (reason: #{error})")
+      latestData = cloneDeep data
+      enableReport()
+    loaded = true
+
+  sumUpMessagesPerChannel = (channel) ->
+    echannel = escape channel
+
+    if !data
+      data = {}
+    if !data[echannel]
+      data[echannel] = 0
+    data[echannel]++
+    robot.logger.info("sumUp:#{JSON.stringify(data)}")
+
+    # wait robot.brain.set until loaded avoid destruction of data
+    if loaded
+      robot.brain.data.timelineSumup = JSON.stringify data
+
+  score = ->
+    # culculate diff between data and latestData
+    diff = {}
+    for key, value of data
+      if !latestData[key]
+        latestData[key] = 0
+      if (value - latestData[key]) > 0
+        diff[key] = value - latestData[key]
+
+    # update latestData
+    latestData = cloneDeep data
+
+    # sort diff by value
+    z = []
+    for key,value of diff
+      z.push([key,value])
+    z.sort( (a,b) -> b[1] - a[1] )
+
+    # display ranking
+    if z.length > 0
+      msgs = [ "Top 5 most active channels in #timeline" ]
+      top5 = z[0..4]
+      for msgsPerChannel in top5
+        msgs.push(msgsPerChannel[0]+':'+msgsPerChannel[1])
+      return msgs.join("\n")
+    return ""
+
+  enableReport = ->
+    for job in report
+      job.stop()
+    report = []
+    timeline_channel = process.env.SLACK_TIMELINE_CHANNEL ? "timeline"
+    report[report.length] = new cronJob "0 0 10 * * *", () ->
+      robot.send { room: timeline_channel }, score()
+    , null, true, timezone
+
+
   robot.hear /.*?/i, (msg) ->
     channel = msg.envelope.room
     message = msg.message.text
@@ -25,6 +99,7 @@ module.exports = (robot) ->
       timeline_channel = if process.env.SLACK_TIMELINE_CHANNEL then process.env.SLACK_TIMELINE_CHANNEL else 'timeline'
       request = msg.http("https://slack.com/api/chat.postMessage?token=#{process.env.SLACK_API_TOKEN}&channel=%23#{timeline_channel}&text=#{message}%20(at%20%23#{channel}%20)&username=#{username}&link_names=#{link_names}&pretty=1&icon_url=#{user_image}").get()
       request (err, res, body) ->
+      sumUpMessagesPerChannel(channel)
 
   reloadUserImages = (robot, user_id) ->
     robot.brain.data.userImages = {} if !robot.brain.data.userImages
