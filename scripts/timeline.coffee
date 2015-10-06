@@ -76,7 +76,7 @@ module.exports = (robot) ->
       msgs = [ "Top 5 most active channels in #timeline" ]
       top5 = z[0..4]
       for msgsPerChannel in top5
-        msgs.push(msgsPerChannel[0]+':'+msgsPerChannel[1])
+        msgs.push(msgsPerChannel[0]+" ("+msgsPerChannel[1]+"件)")
       return msgs.join("\n")
     return ""
 
