@@ -87,9 +87,9 @@ module.exports = (robot) ->
     for job in report
       job.stop()
     report = []
-    timeline_channel = process.env.SLACK_TIMELINE_CHANNEL ? "timeline"
+    #timeline_channel = process.env.SLACK_TIMELINE_CHANNEL ? "timeline"
     report[report.length] = new cronJob "0 0 10 * * *", () ->
-      robot.send { room: timeline_channel }, score()
+      robot.send { room: "general" }, score()
     , null, true, timezone
 
   # robot.respond /setData (.*)/, (msg) ->
