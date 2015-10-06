@@ -16,6 +16,8 @@ cronJob = require('cron').CronJob
 
 timezone = process.env.TZ ? ""
 
+commands = ['setData', 'setLatestData']
+
 module.exports = (robot) ->
 
   data = {}
@@ -29,9 +31,10 @@ module.exports = (robot) ->
     if !loaded
       try
         data = JSON.parse robot.brain.data.timelineSumup
+        latestData = JSON.parse robot.brain.data.timelineSumupLatest
       catch error
         robot.logger.info("JSON parse error (reason: #{error})")
-      latestData = cloneDeep data
+      #latestData = cloneDeep data
       enableReport()
     loaded = true
 
@@ -59,7 +62,8 @@ module.exports = (robot) ->
         diff[key] = value - latestData[key]
 
     # update latestData
-    latestData = cloneDeep data
+    #latestData = cloneDeep data
+    robot.brain.data.timelineSumupLatest = JSON.stringify data
 
     # sort diff by value
     z = []
@@ -76,6 +80,9 @@ module.exports = (robot) ->
       return msgs.join("\n")
     return ""
 
+  setLatestData = (jsondata) ->
+    robot.brain.data.timelineSumupLatest = jsondata
+
   enableReport = ->
     for job in report
       job.stop()
@@ -85,8 +92,21 @@ module.exports = (robot) ->
       robot.send { room: timeline_channel }, score()
     , null, true, timezone
 
+  robot.respond /setData (.*)/, (msg) ->
+    robot.brain.data.timelineSumup = msg.match[1]
+    msg.send "set data"
+    console.log robot.brain.data.timelineSumup
+
+  robot.respond /setLatestData (.*)/, (msg) ->
+    robot.brain.data.timelineSumupLatest = msg.match[1]
+    msg.send "set latestData"
+    console.log robot.brain.data.timelineSumupLatest
 
   robot.hear /.*?/i, (msg) ->
+    for command in commands
+      if (msg.message.text.indexOf(command) isnt -1)
+        return
+
     channel = msg.envelope.room
     message = msg.message.text
     username = msg.message.user.name
@@ -97,6 +117,8 @@ module.exports = (robot) ->
       message = encodeURIComponent(message)
       link_names = if process.env.SLACK_LINK_NAMES then process.env.SLACK_LINK_NAMES else 0
       timeline_channel = if process.env.SLACK_TIMELINE_CHANNEL then process.env.SLACK_TIMELINE_CHANNEL else 'timeline'
+      if channel is timeline_channel
+        return
       request = msg.http("https://slack.com/api/chat.postMessage?token=#{process.env.SLACK_API_TOKEN}&channel=%23#{timeline_channel}&text=#{message}%20(at%20%23#{channel}%20)&username=#{username}&link_names=#{link_names}&pretty=1&icon_url=#{user_image}").get()
       request (err, res, body) ->
       sumUpMessagesPerChannel(channel)
