@@ -92,20 +92,20 @@ module.exports = (robot) ->
       robot.send { room: timeline_channel }, score()
     , null, true, timezone
 
-  robot.respond /setData (.*)/, (msg) ->
-    robot.brain.data.timelineSumup = msg.match[1]
-    msg.send "set data"
-    console.log robot.brain.data.timelineSumup
+  # robot.respond /setData (.*)/, (msg) ->
+  #   robot.brain.data.timelineSumup = msg.match[1]
+  #   msg.send "set data"
+  #   console.log robot.brain.data.timelineSumup
 
-  robot.respond /setLatestData (.*)/, (msg) ->
-    robot.brain.data.timelineSumupLatest = msg.match[1]
-    msg.send "set latestData"
-    console.log robot.brain.data.timelineSumupLatest
+  # robot.respond /setLatestData (.*)/, (msg) ->
+  #   robot.brain.data.timelineSumupLatest = msg.match[1]
+  #   msg.send "set latestData"
+  #   console.log robot.brain.data.timelineSumupLatest
 
   robot.hear /.*?/i, (msg) ->
-    for command in commands
-      if (msg.message.text.indexOf(command) isnt -1)
-        return
+    # for command in commands
+    #   if (msg.message.text.indexOf(command) isnt -1)
+    #     return
 
     channel = msg.envelope.room
     message = msg.message.text
