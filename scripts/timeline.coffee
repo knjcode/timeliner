@@ -46,7 +46,7 @@ module.exports = (robot) ->
     if !data[echannel]
       data[echannel] = 0
     data[echannel]++
-    robot.logger.info("sumUp:#{JSON.stringify(data)}")
+    #robot.logger.info("sumUp:#{JSON.stringify(data)}")
 
     # wait robot.brain.set until loaded avoid destruction of data
     if loaded
