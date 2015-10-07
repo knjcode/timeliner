@@ -73,7 +73,7 @@ module.exports = (robot) ->
 
     # display ranking
     if z.length > 0
-      msgs = [ "Top 5 most active channels in #timeline" ]
+      msgs = [ "いま話題のチャンネル(過去24時間の投稿数Top5@#timeline)" ]
       top5 = z[0..4]
       for msgsPerChannel in top5
         msgs.push(msgsPerChannel[0]+" ("+msgsPerChannel[1]+"件)")
