@@ -62,8 +62,8 @@ module.exports = (robot) ->
         diff[key] = value - latestData[key]
 
     # update latestData
-    #latestData = cloneDeep data
-    robot.brain.data.timelineSumupLatest = JSON.stringify data
+    latestData = cloneDeep data
+    robot.brain.data.timelineSumupLatest = JSON.stringify latestData
 
     # sort diff by value
     z = []
