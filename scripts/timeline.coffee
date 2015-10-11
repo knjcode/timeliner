@@ -80,9 +80,6 @@ module.exports = (robot) ->
       return msgs.join("\n")
     return ""
 
-  setLatestData = (jsondata) ->
-    robot.brain.data.timelineSumupLatest = jsondata
-
   enableReport = ->
     for job in report
       job.stop()
