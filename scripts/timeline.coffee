@@ -133,7 +133,11 @@ module.exports = (robot) ->
     request options, (error, response, body) ->
       json = JSON.parse body
       i = 0
-      len = json.members.length ? 0
+      try
+        len = json.members.length
+      catch error
+        robot.logger.error("#{error}")
+        len = 0
 
       while i < len
         image = json.members[i].profile.image_48
