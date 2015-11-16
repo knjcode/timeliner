@@ -16,7 +16,7 @@ cronJob = require('cron').CronJob
 
 timezone = process.env.TZ ? ""
 
-commands = ['setData', 'setLatestData']
+commands = ['setData', 'setLatestData', 'ReloadMyImage']
 
 module.exports = (robot) ->
 
@@ -99,10 +99,37 @@ module.exports = (robot) ->
   #   msg.send "set latestData"
   #   console.log robot.brain.data.timelineSumupLatest
 
+  robot.respond /ReloadMyImage/, (msg) ->
+    username = msg.message.user.name
+    user_id = msg.message.user.id
+
+    options =
+      url: "https://slack.com/api/users.list?token=#{process.env.SLACK_API_TOKEN}&pretty=1"
+      timeout: 2000
+      headers: {}
+
+    request options, (error, response, body) ->
+      json = JSON.parse body
+      i = 0
+      try
+        len = json.members.length
+      catch error
+        robot.logger.error("#{error}")
+        len = 0
+
+      while i < len
+        if json.members[i].id is user_id
+          image = json.members[i].profile.image_48
+          robot.brain.data.userImages[user_id] = image
+        ++i
+
+    msg.send "Reload your Image."
+    robot.logger.info("Reload #{username} Image")
+
   robot.hear /.*?/i, (msg) ->
-    # for command in commands
-    #   if (msg.message.text.indexOf(command) isnt -1)
-    #     return
+    for command in commands
+      if (msg.message.text.indexOf(command) isnt -1)
+        return
 
     channel = msg.envelope.room
     message = msg.message.text
