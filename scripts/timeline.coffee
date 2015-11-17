@@ -135,6 +135,9 @@ module.exports = (robot) ->
     message = msg.message.text
     username = msg.message.user.name
     user_id = msg.message.user.id
+
+    robot.logger.info("channel is #{channel} username is #{username}")
+
     reloadUserImages(robot, user_id)
     user_image = robot.brain.data.userImages[user_id]
     if message.length > 0
