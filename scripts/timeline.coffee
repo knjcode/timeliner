@@ -3,12 +3,26 @@
 #
 # Configuration:
 #   create #timeline channel on your Slack team
+#   SLACK_API_TOKEN                - Your Slack API token
+#   SLACK_LINK_NAMES               - set 1 to enable link names in timeline
+#   SLACK_TIMELINE_CHANNEL         - timeline channel name (defualt. timeline)
+#   SLACK_TIMELINE_HUBOT_ID        - hubot ID in your Slack team
+#   SLACK_TIMELINE_HUBOT_NAME      - hubot name
+#   SLACK_TIMELINE_RANKING_ENABLED - set 1 to display ranking
+#   SLACK_TIMELINE_RANKING_CHANNEL - ranking channel name (default. general)
+#   SLACK_TIMELINE_RANKING_CRONJOB - ranking cron (default. "0 0 10 * * *")
+#   TZ                             - set timezone
+#
+# Commands:
+#   hubot ReloadMyImage
 #
 # Notes:
 #   None
 #
-# Author:
+# Original Author:
 #   vexus2
+# Customized by:
+#   knjcode
 
 request = require 'request'
 cloneDeep = require 'lodash.clonedeep'
@@ -34,25 +48,23 @@ module.exports = (robot) ->
         latestData = JSON.parse robot.brain.data.timelineSumupLatest
       catch error
         robot.logger.info("JSON parse error (reason: #{error})")
-      #latestData = cloneDeep data
       enableReport()
     loaded = true
 
   sumUpMessagesPerChannel = (channel) ->
-    echannel = escape channel
-
     if !data
       data = {}
-    if !data[echannel]
-      data[echannel] = 0
-    data[echannel]++
-    #robot.logger.info("sumUp:#{JSON.stringify(data)}")
+    if !data[channel]
+      data[channel] = 0
+    data[channel]++
 
     # wait robot.brain.set until loaded avoid destruction of data
     if loaded
       robot.brain.data.timelineSumup = JSON.stringify data
 
   score = ->
+    timeline_channel = process.env.SLACK_TIMELINE_CHANNEL ? "timeline"
+
     # culculate diff between data and latestData
     diff = {}
     for key, value of data
@@ -73,21 +85,40 @@ module.exports = (robot) ->
 
     # display ranking
     if z.length > 0
-      msgs = [ "いま話題のチャンネル(過去24時間の投稿数Top5@timeline)" ]
+      msgs = [ "いま話題のチャンネル(過去24時間の投稿数Top5 ##{timeline_channel} )" ]
       top5 = z[0..4]
       for msgsPerChannel in top5
-        msgs.push(msgsPerChannel[0]+" ("+msgsPerChannel[1]+"件)")
+        msgs.push("#"+msgsPerChannel[0]+" ("+msgsPerChannel[1]+"件)")
       return msgs.join("\n")
     return ""
 
+  display_ranking = ->
+    ranking_enabled = process.env.SLACK_TIMELINE_RANKING_ENABLED
+    if ranking_enabled
+      timeliner_id = process.env.SLACK_TIMELINE_HUBOT_ID
+      timeliner_name = process.env.SLACK_TIMELINE_HUBOT_NAME
+      link_names = process.env.SLACK_LINK_NAMES ? 0
+      timeline_channel = process.env.SLACK_TIMELINE_RANKING_CHANNEL ? "general"
+      timeliner_image = robot.brain.data.userImages[timeliner_id]
+      ranking_text = encodeURIComponent(score())
+      ranking_url = "https://slack.com/api/chat.postMessage?token=#{process.env.SLACK_API_TOKEN}&channel=%23#{timeline_channel}&text=#{ranking_text}&username=#{timeliner_name}&link_names=#{link_names}&pretty=1&icon_url=#{timeliner_image}"
+      robot.logger.info ranking_url
+      request ranking_url, (error, response, body) ->
+        robot.logger.info(body)
+
   enableReport = ->
-    for job in report
-      job.stop()
-    report = []
-    #timeline_channel = process.env.SLACK_TIMELINE_CHANNEL ? "timeline"
-    report[report.length] = new cronJob "0 0 10 * * *", () ->
-      robot.send { room: "general" }, score()
-    , null, true, timezone
+    ranking_enabled = process.env.SLACK_TIMELINE_RANKING_ENABLED
+    if ranking_enabled
+      for job in report
+        job.stop()
+      report = []
+
+      ranking_cronjob = process.env.SLACK_TIMELINE_RANKING_CRONJOB ? "0 0 10 * * *"
+
+      report[report.length] = new cronJob ranking_cronjob, () ->
+        display_ranking()
+      , null, true, timezone
+      robot.logger.info("Set ranking cronjob at " + ranking_cronjob)
 
   # robot.respond /setData (.*)/, (msg) ->
   #   robot.brain.data.timelineSumup = msg.match[1]
@@ -136,6 +167,7 @@ module.exports = (robot) ->
     username = msg.message.user.name
     user_id = msg.message.user.id
 
+    # ignore DMs to hubot
     if channel is username
       return
 
@@ -143,12 +175,16 @@ module.exports = (robot) ->
     user_image = robot.brain.data.userImages[user_id]
     if message.length > 0
       message = encodeURIComponent(message)
-      link_names = if process.env.SLACK_LINK_NAMES then process.env.SLACK_LINK_NAMES else 0
-      timeline_channel = if process.env.SLACK_TIMELINE_CHANNEL then process.env.SLACK_TIMELINE_CHANNEL else 'timeline'
+      link_names = process.env.SLACK_LINK_NAMES ? 0
+      timeline_channel = process.env.SLACK_TIMELINE_CHANNEL ? "timeline"
+
+      # ignore messages to timeline channel
       if channel is timeline_channel
         return
+
       request = msg.http("https://slack.com/api/chat.postMessage?token=#{process.env.SLACK_API_TOKEN}&channel=%23#{timeline_channel}&text=#{message}%20(at%20%23#{channel}%20)&username=#{username}&link_names=#{link_names}&pretty=1&icon_url=#{user_image}").get()
       request (err, res, body) ->
+
       sumUpMessagesPerChannel(channel)
 
   reloadUserImages = (robot, user_id) ->
@@ -174,5 +210,3 @@ module.exports = (robot) ->
         image = json.members[i].profile.image_48
         robot.brain.data.userImages[json.members[i].id] = image
         ++i
-
-
