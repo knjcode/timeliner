@@ -101,17 +101,17 @@ module.exports = (robot) ->
       timeline_channel = process.env.SLACK_TIMELINE_RANKING_CHANNEL ? "general"
       timeliner_image = robot.brain.data.userImages[timeliner_id]
       ranking_text = encodeURIComponent(score())
-      ranking_url = "https://slack.com/api/chat.postMessage?token=#{process.env.SLACK_API_TOKEN}&channel=%23#{timeline_channel}&text=#{ranking_text}&username=#{timeliner_name}&link_names=#{link_names}&pretty=1&icon_url=#{timeliner_image}"
-      robot.logger.info ranking_url
-      # request ranking_url, (error, response, body) ->
-      robot.http(ranking_url).get() (error, response, body) ->
-        if error
-          robot.logger.error("#{error}")
-          return
-        robot.logger.info(response.statusCode)
-        # update latestData
-        latestData = cloneDeep data
-        robot.brain.data.timelineSumupLatest = JSON.stringify latestData
+      if ranking_text.length > 0
+        ranking_url = "https://slack.com/api/chat.postMessage?token=#{process.env.SLACK_API_TOKEN}&channel=%23#{timeline_channel}&text=#{ranking_text}&username=#{timeliner_name}&link_names=#{link_names}&icon_url=#{timeliner_image}"
+        robot.logger.info ranking_url
+        robot.http(ranking_url).get() (error, response, body) ->
+          if error
+            robot.logger.error("#{error}")
+            return
+          robot.logger.info("chat.postMessage statusCode: " + response.statusCode)
+          # update latestData
+          latestData = cloneDeep data
+          robot.brain.data.timelineSumupLatest = JSON.stringify latestData
 
   enableReport = ->
     ranking_enabled = process.env.SLACK_TIMELINE_RANKING_ENABLED
@@ -171,7 +171,7 @@ module.exports = (robot) ->
       if channel is timeline_channel
         return
 
-      robot.http("https://slack.com/api/chat.postMessage?token=#{process.env.SLACK_API_TOKEN}&channel=%23#{timeline_channel}&text=#{message}%20(at%20%23#{channel}%20)&username=#{username}&link_names=#{link_names}&pretty=1&icon_url=#{user_image}")
+      robot.http("https://slack.com/api/chat.postMessage?token=#{process.env.SLACK_API_TOKEN}&channel=%23#{timeline_channel}&text=#{message}%20(at%20%23#{channel}%20)&username=#{username}&link_names=#{link_names}&icon_url=#{user_image}")
         .get() (error, response, body) ->
           if error
             robot.logger.error("#{error}")
@@ -185,7 +185,7 @@ module.exports = (robot) ->
 
     return if robot.brain.data.userImages[user_id] != ""
 
-    robot.http("https://slack.com/api/users.list?token=#{process.env.SLACK_API_TOKEN}&pretty=1")
+    robot.http("https://slack.com/api/users.list?token=#{process.env.SLACK_API_TOKEN}")
       .get() (error, response, body) ->
         if error
           robot.logger.error("#{error}")
