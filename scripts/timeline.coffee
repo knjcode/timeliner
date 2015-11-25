@@ -85,7 +85,7 @@ module.exports = (robot) ->
 
     # display ranking
     if z.length > 0
-      msgs = [ "いま話題のチャンネル(過去24時間の投稿数Top5 ##{timeline_channel} )" ]
+      msgs = [ "いま話題のチャンネル(過去24時間の投稿数Top5 ##{timeline_channel})" ]
       top5 = z[0..4]
       for msgsPerChannel in top5
         msgs.push("#"+msgsPerChannel[0]+" ("+msgsPerChannel[1]+"件)")
@@ -171,7 +171,7 @@ module.exports = (robot) ->
       if channel is timeline_channel
         return
 
-      robot.http("https://slack.com/api/chat.postMessage?token=#{process.env.SLACK_API_TOKEN}&channel=%23#{timeline_channel}&text=#{message}%20(at%20%23#{channel}%20)&username=#{username}&link_names=#{link_names}&icon_url=#{user_image}")
+      robot.http("https://slack.com/api/chat.postMessage?token=#{process.env.SLACK_API_TOKEN}&channel=%23#{timeline_channel}&text=#{message}%20(at%20%23#{channel})&username=#{username}&link_names=#{link_names}&icon_url=#{user_image}")
         .get() (error, response, body) ->
           if error
             robot.logger.error("#{error}")
