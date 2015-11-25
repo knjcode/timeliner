@@ -73,9 +73,9 @@ module.exports = (robot) ->
       if (value - latestData[key]) > 0
         diff[key] = value - latestData[key]
 
-    # update latestData
-    latestData = cloneDeep data
-    robot.brain.data.timelineSumupLatest = JSON.stringify latestData
+    # # update latestData
+    # latestData = cloneDeep data
+    # robot.brain.data.timelineSumupLatest = JSON.stringify latestData
 
     # sort diff by value
     z = []
@@ -104,7 +104,13 @@ module.exports = (robot) ->
       ranking_url = "https://slack.com/api/chat.postMessage?token=#{process.env.SLACK_API_TOKEN}&channel=%23#{timeline_channel}&text=#{ranking_text}&username=#{timeliner_name}&link_names=#{link_names}&pretty=1&icon_url=#{timeliner_image}"
       robot.logger.info ranking_url
       request ranking_url, (error, response, body) ->
+        if error
+          robot.logger.error("#{error}")
+          return
         robot.logger.info(body)
+        # update latestData
+        latestData = cloneDeep data
+        robot.brain.data.timelineSumupLatest = JSON.stringify latestData
 
   enableReport = ->
     ranking_enabled = process.env.SLACK_TIMELINE_RANKING_ENABLED
