@@ -189,8 +189,11 @@ module.exports = (robot) ->
       if channel is timeline_channel
         return
 
-      request = msg.http("https://slack.com/api/chat.postMessage?token=#{process.env.SLACK_API_TOKEN}&channel=%23#{timeline_channel}&text=#{message}%20(at%20%23#{channel}%20)&username=#{username}&link_names=#{link_names}&pretty=1&icon_url=#{user_image}").get()
-      request (err, res, body) ->
+      robot.http("https://slack.com/api/chat.postMessage?token=#{process.env.SLACK_API_TOKEN}&channel=%23#{timeline_channel}&text=#{message}%20(at%20%23#{channel}%20)&username=#{username}&link_names=#{link_names}&pretty=1&icon_url=#{user_image}")
+        .get() (error, response, body) ->
+          if error
+            robot.logger.error("#{error}")
+            return
 
       sumUpMessagesPerChannel(channel)
 
