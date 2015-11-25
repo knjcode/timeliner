@@ -141,25 +141,7 @@ module.exports = (robot) ->
     username = msg.message.user.name
     user_id = msg.message.user.id
 
-    options =
-      url: "https://slack.com/api/users.list?token=#{process.env.SLACK_API_TOKEN}&pretty=1"
-      timeout: 2000
-      headers: {}
-
-    request options, (error, response, body) ->
-      json = JSON.parse body
-      i = 0
-      try
-        len = json.members.length
-      catch error
-        robot.logger.error("#{error}")
-        len = 0
-
-      while i < len
-        if json.members[i].id is user_id
-          image = json.members[i].profile.image_48
-          robot.brain.data.userImages[user_id] = image
-        ++i
+    reloadUserImages(robot, user_id, true)
 
     msg.send "Reload your Image."
     robot.logger.info("Reload #{username} Image")
@@ -197,26 +179,31 @@ module.exports = (robot) ->
 
       sumUpMessagesPerChannel(channel)
 
-  reloadUserImages = (robot, user_id) ->
+  reloadUserImages = (robot, user_id, just_one) ->
     robot.brain.data.userImages = {} if !robot.brain.data.userImages
     robot.brain.data.userImages[user_id] = "" if !robot.brain.data.userImages[user_id]?
 
     return if robot.brain.data.userImages[user_id] != ""
-    options =
-      url: "https://slack.com/api/users.list?token=#{process.env.SLACK_API_TOKEN}&pretty=1"
-      timeout: 2000
-      headers: {}
 
-    request options, (error, response, body) ->
-      json = JSON.parse body
-      i = 0
-      try
-        len = json.members.length
-      catch error
-        robot.logger.error("#{error}")
-        len = 0
+    robot.http("https://slack.com/api/users.list?token=#{process.env.SLACK_API_TOKEN}&pretty=1")
+      .get() (error, response, body) ->
+        if error
+          robot.logger.error("#{error}")
+          return
 
-      while i < len
-        image = json.members[i].profile.image_48
-        robot.brain.data.userImages[json.members[i].id] = image
-        ++i
+        try
+          json = JSON.parse body
+          len = json.members.length
+        catch error
+          robot.logger.error("#{error}")
+          len = 0
+
+        i = 0
+        while i < len
+          image = json.members[i].profile.image_48
+          target_id = json.members[i].id
+          if just_one and (target_id is user_id)
+            robot.brain.data.userImages[user_id] = image
+          else
+            robot.brain.data.userImages[target_id] = image
+          ++i
