@@ -103,7 +103,8 @@ module.exports = (robot) ->
       ranking_text = encodeURIComponent(score())
       ranking_url = "https://slack.com/api/chat.postMessage?token=#{process.env.SLACK_API_TOKEN}&channel=%23#{timeline_channel}&text=#{ranking_text}&username=#{timeliner_name}&link_names=#{link_names}&pretty=1&icon_url=#{timeliner_image}"
       robot.logger.info ranking_url
-      request ranking_url, (error, response, body) ->
+      # request ranking_url, (error, response, body) ->
+      robot.http(ranking_url).get() (error, response, body) ->
         if error
           robot.logger.error("#{error}")
           return
