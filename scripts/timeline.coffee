@@ -107,7 +107,7 @@ module.exports = (robot) ->
         if error
           robot.logger.error("#{error}")
           return
-        robot.logger.info(response)
+        robot.logger.info(response.statusCode)
         # update latestData
         latestData = cloneDeep data
         robot.brain.data.timelineSumupLatest = JSON.stringify latestData
