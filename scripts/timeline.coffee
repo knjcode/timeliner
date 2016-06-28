@@ -183,7 +183,8 @@ module.exports = (robot) ->
     robot.brain.data.userImages = {} if !robot.brain.data.userImages
     robot.brain.data.userImages[user_id] = "" if !robot.brain.data.userImages[user_id]?
 
-    return if robot.brain.data.userImages[user_id] != ""
+    unless just_one
+      return if robot.brain.data.userImages[user_id] != ""
 
     robot.http("https://slack.com/api/users.list?token=#{process.env.SLACK_API_TOKEN}")
       .get() (error, response, body) ->
