@@ -179,32 +179,20 @@ module.exports = (robot) ->
 
       sumUpMessagesPerChannel(channel)
 
-  reloadUserImages = (robot, user_id, just_one) ->
+  reloadUserImages = (robot, userId, justOne) ->
     robot.brain.data.userImages = {} if !robot.brain.data.userImages
-    robot.brain.data.userImages[user_id] = "" if !robot.brain.data.userImages[user_id]?
+    robot.brain.data.userImages[userId] = '' if !robot.brain.data.userImages[userId]?
+    unless justOne
+      return if robot.brain.data.userImages[userId] isnt ''
 
-    unless just_one
-      return if robot.brain.data.userImages[user_id] != ""
-
-    robot.http("https://slack.com/api/users.list?token=#{process.env.SLACK_API_TOKEN}")
-      .get() (error, response, body) ->
-        if error
-          robot.logger.error("#{error}")
-          return
-
-        try
-          json = JSON.parse body
-          len = json.members.length
-        catch error
-          robot.logger.error("#{error}")
-          len = 0
-
-        i = 0
-        while i < len
-          image = json.members[i].profile.image_48
-          target_id = json.members[i].id
-          if just_one and (target_id is user_id)
-            robot.brain.data.userImages[user_id] = image
-          else
-            robot.brain.data.userImages[target_id] = image
-          ++i
+    username = robot.adapter.client.getUserByID(userId).name
+    robot.adapter.client._apiCall 'users.list', {}, (res) ->
+      for i in [0...res.members.length]
+        targetId = res.members[i].id
+        targetImage = res.members[i].profile.image_48
+        if justOne
+          if targetId is userId
+            robot.logger.info "Reload #{username} image. targetId: #{targetId} targetImage: #{targetImage}"
+            robot.brain.data.userImages[userId] = targetImage
+        else
+          robot.brain.data.userImages[targetId] = targetImage
