@@ -3,8 +3,11 @@
 #
 # Configuration:
 #   create #timeline channel on your Slack team
-#   SLACK_API_TOKEN                - Your Slack API token
+#   SLACK_TIMELINE_MSG_REDIS       - set message ts caching Redis URL
+#   SLACK_TIMELINE_TEAM_NAME       - set prefix of message caching Redis
 #   SLACK_LINK_NAMES               - set 1 to enable link names in timeline
+#   SLACK_UNFURL_LINKS             - set true to unfurl text-based content
+#   SLACK_UNFURL_MEDIA             - set true to unfurl media content
 #   SLACK_TIMELINE_CHANNEL         - timeline channel name (defualt. timeline)
 #   SLACK_TIMELINE_HUBOT_ID        - hubot ID in your Slack team
 #   SLACK_TIMELINE_HUBOT_NAME      - hubot name
@@ -27,6 +30,8 @@
 request = require 'request'
 cloneDeep = require 'lodash.clonedeep'
 cronJob = require('cron').CronJob
+url = require 'url'
+tsRedis = require 'redis'
 
 timezone = process.env.TZ ? ""
 
@@ -38,6 +43,10 @@ module.exports = (robot) ->
   latestData = {}
   report = []
   loaded = false
+
+  info = url.parse process.env.SLACK_TIMELINE_MSG_REDIS
+  tsRedisClient = tsRedis.createClient(info.port, info.hostname)
+  prefix = process.env.SLACK_TIMELINE_TEAM_NAME
 
   robot.brain.on "loaded", ->
     # "loaded" event is called every time robot.brain changed
@@ -51,20 +60,20 @@ module.exports = (robot) ->
       enableReport()
     loaded = true
 
+
   sumUpMessagesPerChannel = (channel) ->
     if !data
       data = {}
     if !data[channel]
       data[channel] = 0
     data[channel]++
-
     # wait robot.brain.set until loaded avoid destruction of data
     if loaded
       robot.brain.data.timelineSumup = JSON.stringify data
 
+
   score = ->
     timeline_channel = process.env.SLACK_TIMELINE_CHANNEL ? "timeline"
-
     # culculate diff between data and latestData
     diff = {}
     for key, value of data
@@ -72,17 +81,11 @@ module.exports = (robot) ->
         latestData[key] = 0
       if (value - latestData[key]) > 0
         diff[key] = value - latestData[key]
-
-    # # update latestData
-    # latestData = cloneDeep data
-    # robot.brain.data.timelineSumupLatest = JSON.stringify latestData
-
     # sort diff by value
     z = []
     for key,value of diff
       z.push([key,value])
     z.sort( (a,b) -> b[1] - a[1] )
-
     # display ranking
     if z.length > 0
       msgs = [ "いま話題のchannel (過去24時間の投稿数Top5 ##{timeline_channel})" ]
@@ -92,26 +95,29 @@ module.exports = (robot) ->
       return msgs.join("\n")
     return ""
 
+
   display_ranking = ->
     ranking_enabled = process.env.SLACK_TIMELINE_RANKING_ENABLED
     if ranking_enabled
       timeliner_id = process.env.SLACK_TIMELINE_HUBOT_ID
       timeliner_name = process.env.SLACK_TIMELINE_HUBOT_NAME
       link_names = process.env.SLACK_LINK_NAMES ? 0
-      timeline_channel = process.env.SLACK_TIMELINE_RANKING_CHANNEL ? "general"
+      ranking_channel = process.env.SLACK_TIMELINE_RANKING_CHANNEL ? "general"
       timeliner_image = robot.brain.data.userImages[timeliner_id]
-      ranking_text = encodeURIComponent(score())
+      ranking_text = score()
       if ranking_text.length > 0
-        ranking_url = "https://slack.com/api/chat.postMessage?token=#{process.env.SLACK_API_TOKEN}&channel=%23#{timeline_channel}&text=#{ranking_text}&username=#{timeliner_name}&link_names=#{link_names}&icon_url=#{timeliner_image}"
-        robot.logger.info ranking_url
-        robot.http(ranking_url).get() (error, response, body) ->
-          if error
-            robot.logger.error("#{error}")
-            return
-          robot.logger.info("chat.postMessage statusCode: " + response.statusCode)
+        robot.adapter.client._apiCall 'chat.postMessage',
+          channel: ranking_channel
+          text: ranking_text
+          username: timeliner_name
+          link_names: link_names
+          icon_url: timeliner_image
+        , (res) ->
+          robot.logger.info "post ranking: #{JSON.stringify res}"
           # update latestData
           latestData = cloneDeep data
           robot.brain.data.timelineSumupLatest = JSON.stringify latestData
+
 
   enableReport = ->
     ranking_enabled = process.env.SLACK_TIMELINE_RANKING_ENABLED
@@ -119,72 +125,99 @@ module.exports = (robot) ->
       for job in report
         job.stop()
       report = []
-
       ranking_cronjob = process.env.SLACK_TIMELINE_RANKING_CRONJOB ? "0 0 10 * * *"
-
       report[report.length] = new cronJob ranking_cronjob, () ->
         display_ranking()
       , null, true, timezone
       robot.logger.info("Set ranking cronjob at " + ranking_cronjob)
 
-  # robot.respond /setData (.*)/, (msg) ->
-  #   robot.brain.data.timelineSumup = msg.match[1]
-  #   msg.send "set data"
-  #   console.log robot.brain.data.timelineSumup
-
-  # robot.respond /setLatestData (.*)/, (msg) ->
-  #   robot.brain.data.timelineSumupLatest = msg.match[1]
-  #   msg.send "set latestData"
-  #   console.log robot.brain.data.timelineSumupLatest
 
   robot.respond /ReloadMyImage/, (msg) ->
     username = msg.message.user.name
-    user_id = msg.message.user.id
-
-    reloadUserImages(robot, user_id, true)
-
+    userId = msg.message.user.id
+    reloadUserImages(robot, userId, true)
     msg.send "Reload your Image."
-    robot.logger.info("Reload #{username} Image")
 
+
+  # copy messages in timeline_channel
   robot.hear /.*?/i, (msg) ->
     for command in commands
       if (msg.message.text.indexOf(command) isnt -1)
         return
-
     channel = msg.envelope.room
     message = msg.message.text
     username = msg.message.user.name
-    user_id = msg.message.user.id
-
+    userId = msg.message.user.id
     # ignore DMs to hubot
     if channel is username
       return
 
-    reloadUserImages(robot, user_id)
-    user_image = robot.brain.data.userImages[user_id]
-    if message.length > 0
-      message = encodeURIComponent(message)
-      link_names = process.env.SLACK_LINK_NAMES ? 0
-      timeline_channel = process.env.SLACK_TIMELINE_CHANNEL ? "timeline"
+    originalTs = msg.envelope.message.rawMessage.ts
+    originalChannel = msg.envelope.message.rawMessage.channel
+    robot.logger.debug "originalTs: #{originalTs} originalChannel: #{originalChannel}"
 
+    reloadUserImages(robot, userId)
+    userImage = robot.brain.data.userImages[userId]
+    if message.length > 0
+      link_names = process.env.SLACK_LINK_NAMES ? 0
+      unfurl_links = process.env.SLACK_UNFURL_LINKS ? false
+      unfurl_media = process.env.SLACK_UNFURL_MEDIA ? false
+      timeline_channel = process.env.SLACK_TIMELINE_CHANNEL ? "timeline"
       # ignore messages to timeline channel
       if channel is timeline_channel
         return
 
-      robot.http("https://slack.com/api/chat.postMessage?token=#{process.env.SLACK_API_TOKEN}&channel=%23#{timeline_channel}&text=#{message}%20(%23#{channel})&username=#{username}&link_names=#{link_names}&icon_url=#{user_image}")
-        .get() (error, response, body) ->
-          if error
-            robot.logger.error("#{error}")
-            return
+      robot.adapter.client._apiCall 'chat.postMessage',
+        channel: timeline_channel
+        text: "#{message} (##{channel})"
+        username: username
+        link_names: link_names
+        unfurl_links: unfurl_links
+        unfurl_media: unfurl_media
+        icon_url: userImage
+      , (res) ->
+        tsRedisClient.hsetnx "#{prefix}:#{originalChannel}", originalTs, res.ts
 
       sumUpMessagesPerChannel(channel)
+
+
+  # change and delete timeline_channel messages
+  robot.adapter.client.on 'raw_message', (msg) ->
+    timeline_channel = process.env.SLACK_TIMELINE_CHANNEL ? "timeline"
+    targetChannelId = robot.adapter.client.getChannelGroupOrDMByName(timeline_channel)?.id
+
+    # change messages
+    if msg.type is 'message' and msg.subtype is 'message_changed'
+      return if msg.channel is targetChannelId # return if timeline_channel messages changed
+      link_names = process.env.SLACK_LINK_NAMES ? 0
+      message_channel = robot.adapter.client.getChannelGroupOrDMByID(msg.channel).name
+
+      tsRedisClient.hget "#{prefix}:#{msg.channel}", msg.previous_message.ts, (err, reply) ->
+        robot.adapter.client._apiCall 'chat.update',
+          ts: reply
+          channel: targetChannelId
+          text: "#{msg.message.text} (##{message_channel})"
+          parse: 'full'
+          link_names: link_names
+        , (res) ->
+          robot.logger.debug "change timeline message #{JSON.stringify res}"
+
+    # delete messages
+    if msg.type is 'message' and msg.subtype is 'message_deleted'
+      return if msg.channel is targetChannelId # return if timeline_channel messages deleted
+      tsRedisClient.hget "#{prefix}:#{msg.channel}", msg.previous_message.ts, (err, reply) ->
+        robot.adapter.client._apiCall 'chat.delete',
+          ts: reply
+          channel: targetChannelId
+        , (res) ->
+          robot.logger.debug "delete timeline message #{JSON.stringify res}"
+
 
   reloadUserImages = (robot, userId, justOne) ->
     robot.brain.data.userImages = {} if !robot.brain.data.userImages
     robot.brain.data.userImages[userId] = '' if !robot.brain.data.userImages[userId]?
     unless justOne
       return if robot.brain.data.userImages[userId] isnt ''
-
     username = robot.adapter.client.getUserByID(userId).name
     robot.adapter.client._apiCall 'users.list', {}, (res) ->
       for i in [0...res.members.length]
