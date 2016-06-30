@@ -189,6 +189,7 @@ module.exports = (robot) ->
     # change messages
     if msg.type is 'message' and msg.subtype is 'message_changed'
       return if msg.channel is targetChannelId # return if timeline_channel messages changed
+      return if msg.message.text is msg.previous_message.text # return if text not changed
       link_names = process.env.SLACK_LINK_NAMES ? 0
       message_channel = robot.adapter.client.getChannelGroupOrDMByID(msg.channel).name
 
