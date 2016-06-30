@@ -193,11 +193,12 @@ module.exports = (robot) ->
       link_names = process.env.SLACK_LINK_NAMES ? 0
       message_channel = robot.adapter.client.getChannelGroupOrDMByID(msg.channel).name
 
+      message = robot.adapter.removeFormatting msg.message.text
       tsRedisClient.hget "#{prefix}:#{msg.channel}", msg.previous_message.ts, (err, reply) ->
         robot.adapter.client._apiCall 'chat.update',
           ts: reply
           channel: targetChannelId
-          text: "#{msg.message.text} (##{message_channel})"
+          text: "#{message} (##{message_channel})"
           parse: 'full'
           link_names: link_names
         , (res) ->
