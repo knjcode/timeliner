@@ -214,6 +214,12 @@ module.exports = (robot) ->
         , (res) ->
           robot.logger.debug "delete timeline message #{JSON.stringify res}"
 
+    # change user
+    if msg.type is 'user_change'
+      userId = msg.user.id
+      reloadUserImages(robot, userId, true)
+      robot.logger.debug 'auto update user image'
+
 
   reloadUserImages = (robot, userId, justOne) ->
     robot.brain.data.userImages = {} if !robot.brain.data.userImages
