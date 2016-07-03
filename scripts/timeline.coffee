@@ -167,6 +167,9 @@ module.exports = (robot) ->
       if channel is timeline_channel
         return
 
+      if userImage is ''
+        userImage = 'https://i0.wp.com/slack-assets2.s3-us-west-2.amazonaws.com/8390/img/avatars/ava_0002-48.png'
+
       robot.adapter.client._apiCall 'chat.postMessage',
         channel: timeline_channel
         text: "#{message} (##{channel})"
