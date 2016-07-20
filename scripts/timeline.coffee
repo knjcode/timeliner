@@ -45,8 +45,15 @@ module.exports = (robot) ->
   loaded = false
 
   info = url.parse process.env.SLACK_TIMELINE_MSG_REDIS
-  tsRedisClient = tsRedis.createClient(info.port, info.hostname)
+  tsRedisClient = if info.auth then tsRedis.createClient(info.port, info.hostname, {no_ready_check: true}) else tsRedis.createClient(info.port, info.hostname)
   prefix = process.env.SLACK_TIMELINE_TEAM_NAME
+
+  if info.auth
+    tsRedisClient.auth info.auth, (err) ->
+      if err
+        robot.logger.error "timeliner: Failed to authenticate to timelineMessageRedis"
+      else
+        robot.logger.info "timeliner: Successfully authenticated to timelineMessageRedis"
 
   robot.brain.on "loaded", ->
     # "loaded" event is called every time robot.brain changed
