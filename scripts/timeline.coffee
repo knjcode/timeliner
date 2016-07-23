@@ -9,8 +9,6 @@
 #   SLACK_UNFURL_LINKS             - set true to unfurl text-based content
 #   SLACK_UNFURL_MEDIA             - set true to unfurl media content
 #   SLACK_TIMELINE_CHANNEL         - timeline channel name (defualt. timeline)
-#   SLACK_TIMELINE_HUBOT_ID        - hubot ID in your Slack team
-#   SLACK_TIMELINE_HUBOT_NAME      - hubot name
 #   SLACK_TIMELINE_RANKING_ENABLED - set 1 to display ranking
 #   SLACK_TIMELINE_RANKING_CHANNEL - ranking channel name (default. general)
 #   SLACK_TIMELINE_RANKING_CRONJOB - ranking cron (default. "0 0 10 * * *")
@@ -106,11 +104,10 @@ module.exports = (robot) ->
   display_ranking = ->
     ranking_enabled = process.env.SLACK_TIMELINE_RANKING_ENABLED
     if ranking_enabled
-      timeliner_id = process.env.SLACK_TIMELINE_HUBOT_ID
-      timeliner_name = process.env.SLACK_TIMELINE_HUBOT_NAME
+      timeliner_name = robot.adapter.self.name
       link_names = process.env.SLACK_LINK_NAMES ? 0
       ranking_channel = process.env.SLACK_TIMELINE_RANKING_CHANNEL ? "general"
-      timeliner_image = robot.brain.data.userImages[timeliner_id]
+      timeliner_image = robot.brain.data.userImages[robot.adapter.self.id]
       ranking_text = score()
       if ranking_text.length > 0
         robot.adapter.client._apiCall 'chat.postMessage',
