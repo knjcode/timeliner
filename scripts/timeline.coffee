@@ -44,7 +44,8 @@ module.exports = (robot) ->
 
   info = url.parse process.env.SLACK_TIMELINE_MSG_REDIS
   tsRedisClient = if info.auth then tsRedis.createClient(info.port, info.hostname, {no_ready_check: true}) else tsRedis.createClient(info.port, info.hostname)
-  prefix = process.env.SLACK_TIMELINE_TEAM_NAME
+  prefix = robot.adapter.client.team.id
+  old_prefix = process.env.SLACK_TIMELINE_TEAM_NAME
 
   if info.auth
     tsRedisClient.auth info.auth, (err) ->
@@ -184,6 +185,7 @@ module.exports = (robot) ->
         icon_url: userImage
       , (res) ->
         tsRedisClient.hsetnx "#{prefix}:#{originalChannel}", originalTs, res.ts
+        tsRedisClient.hsetnx "#{old_prefix}:#{originalChannel}", originalTs, res.ts
 
       sumUpMessagesPerChannel(channel)
 
