@@ -42,7 +42,8 @@ module.exports = (robot) ->
   report = []
   loaded = false
 
-  info = url.parse process.env.SLACK_TIMELINE_MSG_REDIS
+  tsRedisUrl = process.env.SLACK_TIMELINE_MSG_REDIS ? 'redis://localhost:6379'
+  info = url.parse tsRedisUrl
   tsRedisClient = if info.auth then tsRedis.createClient(info.port, info.hostname, {no_ready_check: true}) else tsRedis.createClient(info.port, info.hostname)
   prefix = robot.adapter.client.team.id
   old_prefix = process.env.SLACK_TIMELINE_TEAM_NAME
