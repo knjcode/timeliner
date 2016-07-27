@@ -4,7 +4,6 @@
 # Configuration:
 #   create #timeline channel on your Slack team
 #   SLACK_TIMELINE_MSG_REDIS       - set message ts caching Redis URL
-#   SLACK_TIMELINE_TEAM_NAME       - set prefix of message caching Redis
 #   SLACK_LINK_NAMES               - set 1 to enable link names in timeline
 #   SLACK_UNFURL_LINKS             - set true to unfurl text-based content
 #   SLACK_UNFURL_MEDIA             - set true to unfurl media content
@@ -15,7 +14,7 @@
 #   TZ                             - set timezone
 #
 # Commands:
-#   hubot ReloadMyImage
+#   None
 #
 # Notes:
 #   None
@@ -33,8 +32,6 @@ tsRedis = require 'redis'
 
 timezone = process.env.TZ ? ""
 
-commands = ['setData', 'setLatestData', 'ReloadMyImage']
-
 module.exports = (robot) ->
 
   data = {}
@@ -46,7 +43,6 @@ module.exports = (robot) ->
   info = url.parse tsRedisUrl
   tsRedisClient = if info.auth then tsRedis.createClient(info.port, info.hostname, {no_ready_check: true}) else tsRedis.createClient(info.port, info.hostname)
   prefix = robot.adapter.client.team.id
-  old_prefix = process.env.SLACK_TIMELINE_TEAM_NAME
 
   if info.auth
     tsRedisClient.auth info.auth, (err) ->
@@ -138,18 +134,8 @@ module.exports = (robot) ->
       robot.logger.info("Set ranking cronjob at " + ranking_cronjob)
 
 
-  robot.respond /ReloadMyImage/, (msg) ->
-    username = msg.message.user.name
-    userId = msg.message.user.id
-    reloadUserImages(robot, userId, true)
-    msg.send "Reload your Image."
-
-
   # copy messages in timeline_channel
   robot.hear /.*?/i, (msg) ->
-    for command in commands
-      if (msg.message.text.indexOf(command) isnt -1)
-        return
     channel = msg.envelope.room
     message = msg.message.text
     username = msg.message.user.name
@@ -186,7 +172,6 @@ module.exports = (robot) ->
         icon_url: userImage
       , (res) ->
         tsRedisClient.hsetnx "#{prefix}:#{originalChannel}", originalTs, res.ts
-        tsRedisClient.hsetnx "#{old_prefix}:#{originalChannel}", originalTs, res.ts
 
       sumUpMessagesPerChannel(channel)
 
