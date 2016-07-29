@@ -47,7 +47,7 @@ module.exports = (robot) ->
   prefix = robot.adapter.client.team.id
 
   if info.auth
-    tsRedisClient.auth info.auth, (err) ->
+    tsRedisClient.auth info.auth.split(':')[1], (err) ->
       if err
         robot.logger.error "timeliner: Failed to authenticate to timelineMessageRedis"
       else
