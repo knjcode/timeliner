@@ -4,10 +4,10 @@
 # Configuration:
 #   create #timeline channel on your Slack team
 #   SLACK_TIMELINE_MSG_REDIS       - set message ts caching Redis URL
-#   SLACK_LINK_NAMES               - set 1 to enable link names in timeline
-#   SLACK_UNFURL_LINKS             - set true to unfurl text-based content
-#   SLACK_UNFURL_MEDIA             - set true to unfurl media content
-#   SLACK_TIMELINE_CHANNEL         - timeline channel name (defualt. timeline)
+#   SLACK_LINK_NAMES               - set 1 to enable link names in timeline (default. 1)
+#   SLACK_UNFURL_LINKS             - set true to unfurl text-based content (default. true)
+#   SLACK_UNFURL_MEDIA             - set true to unfurl media content (default. true)
+#   SLACK_TIMELINE_CHANNEL         - timeline channel name (default. timeline)
 #   SLACK_TIMELINE_RANKING_ENABLED - set 1 to display ranking
 #   SLACK_TIMELINE_RANKING_CHANNEL - ranking channel name (default. general)
 #   SLACK_TIMELINE_RANKING_CRONJOB - ranking cron (default. "0 0 10 * * *")
@@ -105,7 +105,7 @@ module.exports = (robot) ->
     ranking_enabled = process.env.SLACK_TIMELINE_RANKING_ENABLED
     if ranking_enabled
       timeliner_name = robot.adapter.self.name
-      link_names = process.env.SLACK_LINK_NAMES ? 0
+      link_names = process.env.SLACK_LINK_NAMES ? 1
       ranking_channel = process.env.SLACK_TIMELINE_RANKING_CHANNEL ? "general"
       timeliner_image = robot.brain.data.userImages[robot.adapter.self.id]
       ranking_text = score()
@@ -163,9 +163,9 @@ module.exports = (robot) ->
     reloadUserImages(robot, userId)
     userImage = robot.brain.data.userImages[userId]
     if message.length > 0
-      link_names = process.env.SLACK_LINK_NAMES ? 0
-      unfurl_links = process.env.SLACK_UNFURL_LINKS ? false
-      unfurl_media = process.env.SLACK_UNFURL_MEDIA ? false
+      link_names = process.env.SLACK_LINK_NAMES ? 1
+      unfurl_links = process.env.SLACK_UNFURL_LINKS ? true
+      unfurl_media = process.env.SLACK_UNFURL_MEDIA ? true
       timeline_channel = process.env.SLACK_TIMELINE_CHANNEL ? "timeline"
       # ignore messages to timeline channel
       if channel is timeline_channel
@@ -197,7 +197,7 @@ module.exports = (robot) ->
     if msg.type is 'message' and msg.subtype is 'message_changed'
       return if msg.channel is targetChannelId # return if timeline_channel messages changed
       return if msg.message.text is msg.previous_message.text # return if text not changed
-      link_names = process.env.SLACK_LINK_NAMES ? 0
+      link_names = process.env.SLACK_LINK_NAMES ? 1
       message_channel = robot.adapter.client.getChannelGroupOrDMByID(msg.channel).name
 
       message = robot.adapter.removeFormatting msg.message.text
