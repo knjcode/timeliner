@@ -14,7 +14,7 @@
 #   TZ                             - set timezone
 #
 # Commands:
-#   None
+#   hubot ReloadMyImage
 #
 # Notes:
 #   None
@@ -31,6 +31,8 @@ url = require 'url'
 tsRedis = require 'redis'
 
 timezone = process.env.TZ ? ""
+
+commands = ['ReloadMyImage']
 
 module.exports = (robot) ->
 
@@ -134,8 +136,18 @@ module.exports = (robot) ->
       robot.logger.info("Set ranking cronjob at " + ranking_cronjob)
 
 
+  robot.respond /ReloadMyImage/, (msg) ->
+    username = msg.message.user.name
+    userId = msg.message.user.id
+    reloadUserImages(robot, userId, true)
+    msg.send "Reload your Image."
+
+
   # copy messages in timeline_channel
   robot.hear /.*?/i, (msg) ->
+    for command in commands
+      if (msg.message.text.indexOf(command) isnt -1)
+        return
     channel = msg.envelope.room
     message = msg.message.text
     username = msg.message.user.name
