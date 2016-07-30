@@ -42,7 +42,7 @@ module.exports = (robot) ->
   loaded = false
 
   tsRedisUrl = process.env.SLACK_TIMELINE_MSG_REDIS ? 'redis://localhost:6379'
-  info = url.parse tsRedisUrl
+  info = url.parse tsRedisUrl, true
   tsRedisClient = if info.auth then tsRedis.createClient(info.port, info.hostname, {no_ready_check: true}) else tsRedis.createClient(info.port, info.hostname)
   prefix = robot.adapter.client.team.id
 
@@ -52,6 +52,15 @@ module.exports = (robot) ->
         robot.logger.error "timeliner: Failed to authenticate to timelineMessageRedis"
       else
         robot.logger.info "timeliner: Successfully authenticated to timelineMessageRedis"
+
+  tsRedisClient.on 'error', (err) ->
+    if /ECONNREFUSED/.test err.message
+
+    else
+      robot.logger.error err.stack
+
+  tsRedisClient.on "connect", ->
+    robot.logger.debug "timeliner: Successfully connected to timelineMessageRedis"
 
   robot.brain.on "loaded", ->
     # "loaded" event is called every time robot.brain changed
