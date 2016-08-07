@@ -24,7 +24,6 @@
 # Customized by:
 #   knjcode
 
-request = require 'request'
 cloneDeep = require 'lodash.clonedeep'
 cronJob = require('cron').CronJob
 url = require 'url'
