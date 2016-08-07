@@ -113,7 +113,6 @@ module.exports = (robot) ->
   display_ranking = ->
     ranking_enabled = process.env.SLACK_TIMELINE_RANKING_ENABLED
     if ranking_enabled
-      timeliner_name = robot.adapter.self.name
       link_names = process.env.SLACK_LINK_NAMES ? 1
       ranking_channel = process.env.SLACK_TIMELINE_RANKING_CHANNEL ? "general"
       timeliner_image = robot.brain.data.userImages[robot.adapter.self.id]
@@ -122,7 +121,7 @@ module.exports = (robot) ->
         robot.adapter.client._apiCall 'chat.postMessage',
           channel: ranking_channel
           text: ranking_text
-          username: timeliner_name
+          username: robot.name
           link_names: link_names
           icon_url: timeliner_image
         , (res) ->
